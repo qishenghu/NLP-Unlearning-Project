@@ -43,7 +43,7 @@ def parse_args():
     parser.add_argument("--save_total_limit", type=int, default=3)
     parser.add_argument("--save_steps", type=int, default=500)
     parser.add_argument("--logging_steps", type=int, default=1)
-    parser.add_argument("--use_wandb", type=bool, default=False)
+    parser.add_argument("--use_wandb", action="store_true")
     return parser.parse_args()
 
 

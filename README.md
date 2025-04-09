@@ -77,6 +77,11 @@ CUDA_VISIBLE_DEVICES=1 python3 model_finetune.py \
     --model_name t5-large
 ```
 
+or
+
+```bash
+./run_model_finetune.sh
+```
 
 ## 🚀 Run unlearning baselines
 
