@@ -2,6 +2,7 @@ from datasets import load_dataset, concatenate_datasets
 from transformers import GPT2Tokenizer, GPT2LMHeadModel, T5Tokenizer, T5ForConditionalGeneration
 from transformers import Trainer, TrainingArguments, DataCollatorForLanguageModeling, DataCollatorForSeq2Seq
 from tqdm import tqdm
+import random
 import argparse
 import os
 
@@ -85,29 +86,42 @@ def main():
     # to indicate a language modeling task.​
     def tokenize_function(examples, use_t5=False):
         input_ids_list = []
+        attention_mask_list = []
         labels_list = []
         for text in examples["text"]:
-            if use_t5:
-                text = "lm: " + text  # Add task prefix for T5
             tokens = tokenizer(text, truncation=False)["input_ids"]
 
             # Add task prefix to each chunk for T5
             for i in range(0, len(tokens), 512):
                 chunk = tokens[i:i + 512]
                 if use_t5:
-                    prefix_tokens = tokenizer("lm: ", add_special_tokens=False)["input_ids"]
-                    chunk = prefix_tokens + chunk
-                    if len(chunk) > 512:
-                        chunk = chunk[:512]
-                if len(chunk) < 512:
-                    chunk += [tokenizer.pad_token_id] * (512 - len(chunk))
-                input_ids_list.append(chunk)
-                
-                # Create labels with padding tokens set to -100
-                labels = chunk.copy()
-                labels = [label if label != tokenizer.pad_token_id else -100 for label in labels]
-                labels_list.append(labels)
-        tokenized = {"input_ids": input_ids_list, "labels": labels_list} if use_t5 else {"input_ids": input_ids_list}
+                    chunk_text = tokenizer.decode(chunk, skip_special_tokens=True)
+                    words = chunk_text.split()
+                    mask_length = max(1, int(len(words) * 0.15))
+
+                    if len(words) > mask_length:
+                        start_idx = random.randint(0, len(words) - mask_length)
+                        masked_span = " ".join(words[start_idx:start_idx + mask_length])
+                        
+                        prefix = " ".join(words[:start_idx])
+                        suffix = " ".join(words[start_idx + mask_length:])
+                        input_text = f"fill: {prefix} <extra_id_0> {suffix}"
+                        target_text = f"<extra_id_0> {masked_span} <extra_id_1>"
+                        
+                        chunk = tokenizer(input_text, max_length=512, truncation=True, padding="max_length")
+                        labels = tokenizer(target_text, max_length=128, truncation=True, padding="max_length")
+                        labels = [
+                            (l if l != tokenizer.pad_token_id else -100) for l in labels["input_ids"]
+                        ]
+                        input_ids_list.append(chunk["input_ids"])
+                        attention_mask_list.append(chunk["attention_mask"])
+                        labels_list.append(labels)
+                else:
+                    if len(chunk) < 512:
+                        chunk += [tokenizer.pad_token_id] * (512 - len(chunk))
+                    input_ids_list.append(chunk)
+       
+        tokenized = {"input_ids": input_ids_list, "attention_mask": attention_mask_list, "labels": labels_list} if use_t5 else {"input_ids": input_ids_list, "attention_mask": attention_mask_list}
         return tokenized
 
     use_t5 = "t5" in model_id.lower()

@@ -13,9 +13,9 @@ export WANDB_PROJECT="muse-unlearning"
 # "t5-large": "google-t5/t5-large",
 # "t5-xl": "google/t5-v1_1-xl"
 
-python3 model_finetune.py \
+CUDA_VISIBLE_DEVICES=1 python3 model_finetune.py \
     --corpus news \
-    --model_name gpt2-large \
+    --model_name t5-xl \
     --output_dir ./target_model \
     --num_train_epochs 10 \
     --per_device_train_batch_size 4 \
